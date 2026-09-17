@@ -1,0 +1,10 @@
+[
+  { "slug": "c-programming", "name": "C Programming", "order": 1 },
+  { "slug": "fundamentals-of-computer-system", "name": "Fundamentals of Computer System", "order": 2 },
+  { "slug": "english", "name": "English", "order": 3 },
+  { "slug": "constitution-of-india", "name": "Constitution of India", "order": 4 },
+  { "slug": "principle-of-marketing", "name": "Principles of Marketing", "order": 5 },
+  { "slug": "office-automation", "name": "Office Automation", "order": 6 },
+  { "slug": "media-entertainment", "name": "Media & Entertainment", "order": 7 },
+  { "slug": "indian-contribution-to-computational-science", "name": "Indian Contribution to Computational Science", "order": 8 }
+]
