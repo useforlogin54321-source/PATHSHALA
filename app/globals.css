@@ -35,8 +35,8 @@
   --color-rust: var(--color-rust);
   --color-line: var(--color-line);
 
-  --font-serif: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-  --font-sans: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-sans: "Public Sans", -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
 }
 
 * {
