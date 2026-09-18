@@ -10,10 +10,12 @@ just "how do I run it."
 ## What's here right now
 
 - All 8 Semester 1 subjects, Unit 1, parsed from your uploaded PDFs into
-  structured data (`data/seed/`) — real content, not placeholders.
-- Runs immediately with **zero setup** using that local seed data.
-- Supabase schema + a seed script, ready for when you want content stored
-  in a backend instead (so adding future units doesn't mean a new deploy).
+  structured data — real content, not placeholders.
+- **Connected to a live Supabase project** (`pathshala`, Mumbai region,
+  free tier) — subjects/units/subtopics are seeded and live. The app
+  reads from Supabase when configured, and falls back to the bundled
+  local JSON in `data/seed/` (or if Supabase is ever unreachable, e.g.
+  waking up from an idle pause) so it never hard-fails.
 - An AI assistant scoped to whatever unit is open (needs a free Gemini
   API key to actually respond — the UI works without one, it just can't
   reach the model).
@@ -21,6 +23,8 @@ just "how do I run it."
   controls wired up (Media Session API) — per your call to try this
   before building a pre-generated-audio pipeline.
 - Installable as a PWA on Android and desktop.
+- Fonts (Source Serif 4, Public Sans) are self-hosted via Fontsource -
+  no external font host dependency at all.
 
 ## Quickstart
 
@@ -29,29 +33,42 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 — you should immediately see the 8 subjects
-with real content, no configuration needed. Progress and streaks are
-saved in your browser's localStorage for now (per device, not synced
-yet — see "What's deliberately not done yet" below).
+Open http://localhost:3000. With `.env.local` present (see below) it
+reads live from Supabase; without it, it runs on the bundled seed data.
+Either way it works with zero setup. Progress and streaks are saved in
+your browser's localStorage for now (per device, not synced yet — see
+"What's deliberately not done yet" below).
 
-## Connecting Supabase (optional, for now)
+## Supabase
 
-The app works fine without this. Connect it when you're ready to add
-content without redeploying, or want progress synced across devices.
+Already set up and seeded - project `pathshala` in your account, region
+ap-south-1, free tier ($0/month). `supabase/schema.sql` is the schema
+that's live there. To point your own local copy or a fresh deploy at it,
+copy `.env.local.example` to `.env.local` and fill in the project URL and
+anon key from Supabase's dashboard (Project Settings → API).
 
-1. Create a free Supabase project.
-2. Open the SQL editor and run `supabase/schema.sql`.
-3. Copy `.env.local.example` to `.env.local` and fill in your project's
-   URL and anon key (Project Settings → API), plus the service role key.
-4. Push the seed content in: `node scripts/seed.mjs`
-5. Restart `npm run dev` — the app now reads from Supabase instead of
-   the bundled JSON automatically (see `lib/content.ts` — it checks for
-   the env vars and falls back to local data if they're missing).
+Free tier auto-pauses a project after 7 days with no activity - the
+first request after that takes 10-30s to wake it back up (the app falls
+back to local content in the meantime rather than erroring). Restore
+manually from the dashboard, or ping it on a schedule if that bothers
+you.
 
-Supabase's free tier pauses a project after 7 days with no activity —
-the first request after that takes 10-30s to wake it back up. Fine for
-a personal study app; restore manually from the dashboard, or ping it
-on a schedule if that ever bothers you.
+## Deploying to Vercel
+
+1. Go to https://vercel.com/new and import the `PATHSHALA` GitHub repo
+   (already pushed there).
+2. Add these Environment Variables in the Vercel project settings before
+   the first deploy:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `GEMINI_API_KEY` (once you have one - see below)
+   (Same values as in your local `.env.local`.)
+3. Deploy. Vercel auto-detects Next.js, no build config needed.
+4. Once it's live, open the URL on your Android phone and use the
+   browser's "Install app" / "Add to Home Screen" option to install it
+   as a PWA.
+
+Every push to `main` auto-deploys after this is set up once.
 
 ## Adding the AI assistant
 
