@@ -46,3 +46,30 @@ export type LastVisited = {
   subtopicTitle: string;
   visitedAt: string; // ISO timestamp
 };
+
+export type DayActivity = {
+  read: number;
+  practiced: number;
+  asked: number;
+};
+
+export type DailyLog = {
+  // key: ISO date, YYYY-MM-DD
+  [date: string]: DayActivity;
+};
+
+export type SubjectWithSubtopics = {
+  slug: string;
+  name: string;
+  order: number;
+  unitNumber: string;
+  subtopics: Subtopic[];
+};
+
+export type NextUp = {
+  subjectSlug: string;
+  subjectName: string;
+  unitNumber: string;
+  subtopicNumber: string;
+  subtopicTitle: string;
+};

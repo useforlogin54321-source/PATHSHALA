@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { recordActivityToday } from "@/lib/progress";
+import { recordActivity } from "@/lib/progress";
 import ChatMarkdown from "./ChatMarkdown";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -30,7 +30,7 @@ export default function ChatPanel({ unitContext, subjectName, unitTitle }: Props
     setMessages(nextMessages);
     setInput("");
     setLoading(true);
-    recordActivityToday();
+    recordActivity("asked");
 
     try {
       const res = await fetch("/api/chat", {

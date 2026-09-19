@@ -33,7 +33,7 @@ export default function UnitView({ subjectSlug, subjectName, unit, initialSectio
   const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
-    setProgressState(getAllProgress());
+    const currentProgress = getAllProgress();
     const current = unit.subtopics.find((s) => s.number === validInitial);
     if (current) {
       setLastVisited({
@@ -43,7 +43,12 @@ export default function UnitView({ subjectSlug, subjectName, unit, initialSectio
         subtopicNumber: current.number,
         subtopicTitle: current.title,
       });
+      const key = subtopicKey(subjectSlug, unit.unit_number, current.number);
+      if (!currentProgress[key]) {
+        setProgress(key, "read");
+      }
     }
+    setProgressState(getAllProgress());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
