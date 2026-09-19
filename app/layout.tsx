@@ -12,7 +12,6 @@ export const metadata: Metadata = {
   title: "Pathshala — BCA study companion",
   description:
     "A syllabus-first study companion for BCA: read your units, ask questions scoped to what you're studying, and listen along like a podcast.",
-  manifest: "/manifest.json",
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/apple-touch-icon.png",
