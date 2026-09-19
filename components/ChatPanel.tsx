@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { recordActivityToday } from "@/lib/progress";
+import ChatMarkdown from "./ChatMarkdown";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -79,10 +80,10 @@ export default function ChatPanel({ unitContext, subjectName, unitTitle }: Props
             className={
               m.role === "user"
                 ? "ml-6 rounded-2xl rounded-tr-sm bg-[var(--color-moss-soft)] px-3 py-2 text-sm text-[var(--color-ink)]"
-                : "mr-6 rounded-2xl rounded-tl-sm bg-[var(--color-surface-raised)] px-3 py-2 text-sm text-[var(--color-ink)]"
+                : "mr-6 rounded-2xl rounded-tl-sm bg-[var(--color-surface-raised)] px-3 py-2 text-[var(--color-ink)]"
             }
           >
-            {m.content}
+            {m.role === "assistant" ? <ChatMarkdown content={m.content} /> : m.content}
           </div>
         ))}
         {loading ? (

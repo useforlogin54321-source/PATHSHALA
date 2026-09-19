@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProgressMap, SubtopicProgressStatus, StreakState } from "./types";
+import type { ProgressMap, SubtopicProgressStatus, StreakState, LastVisited } from "./types";
 
 // v1: progress and streaks live in localStorage (per device). This keeps
 // the first build simple and dependency-free. Syncing this to Supabase
@@ -9,6 +9,7 @@ import type { ProgressMap, SubtopicProgressStatus, StreakState } from "./types";
 
 const PROGRESS_KEY = "pathshala:progress";
 const STREAK_KEY = "pathshala:streak";
+const LAST_VISITED_KEY = "pathshala:last-visited";
 
 export function subtopicKey(subjectSlug: string, unitNumber: string, subtopicNumber: string) {
   return `${subjectSlug}:${unitNumber}:${subtopicNumber}`;
@@ -94,4 +95,34 @@ export function subjectCompletion(
     ([key, status]) => key.startsWith(`${subjectSlug}:`) && status !== "unread"
   ).length;
   return Math.min(1, done / totalSubtopics);
+}
+
+export function setLastVisited(entry: Omit<LastVisited, "visitedAt">) {
+  const full: LastVisited = { ...entry, visitedAt: new Date().toISOString() };
+  window.localStorage.setItem(LAST_VISITED_KEY, JSON.stringify(full));
+}
+
+export function getLastVisited(): LastVisited | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LAST_VISITED_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Across every subject: how many subtopics have been touched at all
+ * (read or practiced) vs. the total that exist - for the dashboard's
+ * overall progress ring. */
+export function overallCompletion(
+  totalSubtopics: number,
+  progress: ProgressMap
+): { done: number; total: number; fraction: number } {
+  const done = Object.values(progress).filter((s) => s !== "unread").length;
+  return {
+    done,
+    total: totalSubtopics,
+    fraction: totalSubtopics === 0 ? 0 : Math.min(1, done / totalSubtopics),
+  };
 }

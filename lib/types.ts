@@ -37,3 +37,12 @@ export type StreakState = {
   longest_streak: number;
   last_active_date: string | null; // ISO date, YYYY-MM-DD
 };
+
+export type LastVisited = {
+  subjectSlug: string;
+  subjectName: string;
+  unitNumber: string;
+  subtopicNumber: string;
+  subtopicTitle: string;
+  visitedAt: string; // ISO timestamp
+};

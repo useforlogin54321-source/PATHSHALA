@@ -6,12 +6,13 @@ import type { Unit, ProgressMap } from "@/lib/types";
 import SubtopicNav, { type SectionId } from "./SubtopicNav";
 import ReadAloud from "./ReadAloud";
 import ChatPanel from "./ChatPanel";
-import { getAllProgress, setProgress, subtopicKey } from "@/lib/progress";
+import { getAllProgress, setProgress, subtopicKey, setLastVisited } from "@/lib/progress";
 
 type Props = {
   subjectSlug: string;
   subjectName: string;
   unit: Unit;
+  initialSection?: string;
 };
 
 const SPECIAL_CONTENT: Record<string, (unit: Unit) => { title: string; body: string }> = {
@@ -21,14 +22,29 @@ const SPECIAL_CONTENT: Record<string, (unit: Unit) => { title: string; body: str
   references: (u) => ({ title: "References", body: u.references }),
 };
 
-export default function UnitView({ subjectSlug, subjectName, unit }: Props) {
-  const [active, setActive] = useState<SectionId>(unit.subtopics[0]?.number ?? "summary");
+export default function UnitView({ subjectSlug, subjectName, unit, initialSection }: Props) {
+  const validInitial =
+    initialSection && unit.subtopics.some((s) => s.number === initialSection)
+      ? initialSection
+      : unit.subtopics[0]?.number ?? "summary";
+  const [active, setActive] = useState<SectionId>(validInitial);
   const [progress, setProgressState] = useState<ProgressMap>({});
   const [navOpen, setNavOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     setProgressState(getAllProgress());
+    const current = unit.subtopics.find((s) => s.number === validInitial);
+    if (current) {
+      setLastVisited({
+        subjectSlug,
+        subjectName,
+        unitNumber: unit.unit_number,
+        subtopicNumber: current.number,
+        subtopicTitle: current.title,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const activeSubtopic = unit.subtopics.find((s) => s.number === active);
@@ -47,7 +63,15 @@ export default function UnitView({ subjectSlug, subjectName, unit }: Props) {
   function selectSection(id: SectionId) {
     setActive(id);
     setNavOpen(false);
-    if (unit.subtopics.some((s) => s.number === id)) {
+    const subtopic = unit.subtopics.find((s) => s.number === id);
+    if (subtopic) {
+      setLastVisited({
+        subjectSlug,
+        subjectName,
+        unitNumber: unit.unit_number,
+        subtopicNumber: subtopic.number,
+        subtopicTitle: subtopic.title,
+      });
       const key = subtopicKey(subjectSlug, unit.unit_number, id);
       if (!progress[key]) {
         setProgress(key, "read");
