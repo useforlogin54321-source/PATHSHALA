@@ -1,4 +1,4 @@
-# Pathshala
+# Pathshala 
 
 A syllabus-first study companion for BCA Semester 1 — built from your own
 unit material, nothing added, nothing assumed.
