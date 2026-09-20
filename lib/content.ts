@@ -61,7 +61,7 @@ export async function getSubjectSummaries(): Promise<SubjectWithSubtopics[]> {
       const { data, error } = await supabase
         .from("subjects")
         .select(
-          "slug, name, sort_order, units(unit_number, subtopics(number, title, sort_order))"
+          "slug, name, sort_order, units(unit_number, unit_label, unit_title, subtopics(number, title, sort_order))"
         )
         .order("sort_order", { ascending: true });
 
@@ -81,6 +81,8 @@ export async function getSubjectSummaries(): Promise<SubjectWithSubtopics[]> {
             name: s.name,
             order: s.sort_order,
             unitNumber: unit?.unit_number ?? "1",
+            unitLabel: unit?.unit_label ?? "Unit 1",
+            unitTitle: unit?.unit_title ?? "",
             subtopics,
           };
         });
@@ -100,6 +102,8 @@ export async function getSubjectSummaries(): Promise<SubjectWithSubtopics[]> {
         name: s.name,
         order: s.order,
         unitNumber: unit?.unit_number ?? "1",
+        unitLabel: unit?.unit_label ?? "Unit 1",
+        unitTitle: unit?.unit_title ?? "",
         subtopics: (unit?.subtopics ?? []).map((st) => ({ ...st, content: "" })),
       };
     })
@@ -112,37 +116,42 @@ async function getUnitFromSupabase(subjectSlug: string, unitNumber: string): Pro
   if (!supabase) return null;
 
   try {
-    const { data: subject } = await supabase
+    // One round trip instead of three: subject -> unit -> subtopics,
+    // filtered down to the specific unit via the embedded-resource
+    // filter on units.unit_number. This was the main remaining source
+    // of page-to-page navigation latency after the home page fix.
+    const { data: subject, error } = await supabase
       .from("subjects")
-      .select("id, slug, name")
-      .eq("slug", subjectSlug)
-      .maybeSingle();
-    if (!subject) return null;
-
-    const { data: unitRow } = await supabase
-      .from("units")
       .select(
-        "id, unit_number, unit_label, unit_title, learning_outcomes, summary, keywords, self_assessment_questions, references_text"
+        `slug, name,
+         units!inner(unit_number, unit_label, unit_title, learning_outcomes, summary, keywords, self_assessment_questions, references_text,
+           subtopics(number, title, content, sort_order))`
       )
-      .eq("subject_id", subject.id)
-      .eq("unit_number", unitNumber)
+      .eq("slug", subjectSlug)
+      .eq("units.unit_number", unitNumber)
       .maybeSingle();
+
+    if (error || !subject) return null;
+
+    const unitRow = Array.isArray(subject.units) ? subject.units[0] : subject.units;
     if (!unitRow) return null;
 
-    const { data: subtopics } = await supabase
-      .from("subtopics")
-      .select("number, title, content")
-      .eq("unit_id", unitRow.id)
-      .order("sort_order", { ascending: true });
+    const list = (unitRow.subtopics ?? [])
+      .slice()
+      .sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order)
+      .map((s: { number: string; title: string; content: string }) => ({
+        number: s.number,
+        title: s.title,
+        content: s.content,
+      }));
 
-    const list = subtopics ?? [];
     // raw_text isn't stored in Supabase - it's fully derivable from the
     // rest of the row, and skipping it keeps seed payloads smaller.
     // Reconstruct it here for the AI context and any other raw-text use.
     const raw_text = [
       `${unitRow.unit_label}: ${unitRow.unit_title}`,
       unitRow.learning_outcomes,
-      ...list.map((s) => `${s.number} ${s.title}\n${s.content}`),
+      ...list.map((s: { number: string; title: string; content: string }) => `${s.number} ${s.title}\n${s.content}`),
       unitRow.summary,
       unitRow.keywords,
       unitRow.self_assessment_questions,

@@ -63,6 +63,8 @@ export type SubjectWithSubtopics = {
   name: string;
   order: number;
   unitNumber: string;
+  unitLabel: string;
+  unitTitle: string;
   subtopics: Subtopic[];
 };
 
