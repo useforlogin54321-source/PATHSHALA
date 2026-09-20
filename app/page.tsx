@@ -1,25 +1,10 @@
 import Link from "next/link";
-import { getSubjects, getUnit } from "@/lib/content";
+import { getSubjectSummaries } from "@/lib/content";
 import SubjectList from "@/components/SubjectList";
 import Dashboard from "@/components/Dashboard";
-import type { SubjectWithSubtopics } from "@/lib/types";
 
 export default async function HomePage() {
-  const subjects = await getSubjects();
-
-  const withUnits: SubjectWithSubtopics[] = await Promise.all(
-    subjects.map(async (s) => {
-      const unit = await getUnit(s.slug, "1");
-      return {
-        slug: s.slug,
-        name: s.name,
-        order: s.order,
-        unitNumber: unit?.unit_number ?? "1",
-        subtopics: unit?.subtopics ?? [],
-      };
-    })
-  );
-
+  const withUnits = await getSubjectSummaries();
   const totalSubtopics = withUnits.reduce((sum, s) => sum + s.subtopics.length, 0);
 
   return (

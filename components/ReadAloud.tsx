@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { motion } from "motion/react";
 
 type Props = {
   text: string;
@@ -169,13 +170,23 @@ export default function ReadAloud({ text, title, subtitle }: Props) {
 
   return (
     <div className="flex items-center gap-3 rounded-full border border-[var(--color-line)] bg-[var(--color-surface-raised)] px-4 py-2">
-      <button
-        onClick={playing ? pause : chunkIndex > 0 ? resume : play}
-        aria-label={playing ? "Pause read-aloud" : "Play read-aloud"}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-moss)] text-[var(--color-paper)] transition-opacity hover:opacity-90"
-      >
-        {playing ? "❙❙" : "▶"}
-      </button>
+      <div className="relative flex h-8 w-8 items-center justify-center">
+        {playing ? (
+          <motion.span
+            className="absolute inset-0 rounded-full bg-[var(--color-moss)]"
+            animate={{ scale: [1, 1.35], opacity: [0.45, 0] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut" }}
+          />
+        ) : null}
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={playing ? pause : chunkIndex > 0 ? resume : play}
+          aria-label={playing ? "Pause read-aloud" : "Play read-aloud"}
+          className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-moss)] text-[var(--color-paper)]"
+        >
+          {playing ? "❙❙" : "▶"}
+        </motion.button>
+      </div>
       <span className="text-xs text-[var(--color-ink-soft)] min-w-[6ch]">{progressPct}%</span>
       <button
         onClick={cycleRate}

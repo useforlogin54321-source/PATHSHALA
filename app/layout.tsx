@@ -7,6 +7,7 @@ import "@fontsource/public-sans/500.css";
 import "@fontsource/public-sans/600.css";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import MotionProvider from "@/components/MotionProvider";
 
 export const metadata: Metadata = {
   title: "Pathshala — BCA study companion",
@@ -38,7 +39,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ServiceWorkerRegister />
-        {children}
+        <MotionProvider>{children}</MotionProvider>
       </body>
     </html>
   );

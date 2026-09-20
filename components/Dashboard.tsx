@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "motion/react";
 import ProgressRing from "./ProgressRing";
 import WeekStrip from "./WeekStrip";
 import {
@@ -78,7 +79,12 @@ export default function Dashboard({
     continueTarget.subtopicNumber === nextUp.subtopicNumber;
 
   return (
-    <section className="mb-6 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface-raised)] p-5">
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="mb-6 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface-raised)] p-5"
+    >
       <div className="flex items-center justify-between gap-3">
         <p className="font-[var(--font-serif)] text-lg text-[var(--color-ink)]">{greeting()}</p>
         {mounted ? <WeekStrip days={weekDays} currentStreak={streak.current_streak} /> : null}
@@ -86,7 +92,12 @@ export default function Dashboard({
 
       <div className="mt-4 flex items-center gap-4">
         <ProgressRing progress={fraction} size={56} strokeWidth={5} />
-        <div>
+        <motion.div
+          key={mounted ? "loaded" : "loading"}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25 }}
+        >
           <p className="text-sm font-medium text-[var(--color-ink)]">
             {mounted ? `${done} of ${totalSubtopics} sections studied` : "Loading your progress…"}
           </p>
@@ -98,41 +109,64 @@ export default function Dashboard({
           {mounted && todayRecap ? (
             <p className="mt-0.5 text-xs text-[var(--color-moss)]">{todayRecap}</p>
           ) : null}
-        </div>
+        </motion.div>
       </div>
 
-      {mounted && continueTarget ? (
-        <DashboardActionLink label="Continue" target={continueTarget} />
-      ) : null}
+      <AnimatePresence mode="popLayout">
+        {mounted && continueTarget ? (
+          <DashboardActionLink key="continue" label="Continue" target={continueTarget} />
+        ) : null}
 
-      {mounted && nextUp && !sameTarget ? (
-        <DashboardActionLink label={continueTarget ? "Next up" : "Start here"} target={nextUp} />
-      ) : null}
+        {mounted && nextUp && !sameTarget ? (
+          <DashboardActionLink
+            key="next-up"
+            label={continueTarget ? "Next up" : "Start here"}
+            target={nextUp}
+          />
+        ) : null}
 
-      {mounted && !nextUp && totalSubtopics > 0 ? (
-        <p className="mt-4 rounded-xl bg-[var(--color-moss-soft)] px-4 py-3 text-sm text-[var(--color-ink)]">
-          You've been through every section in Semester 1. 🎉
-        </p>
-      ) : null}
-    </section>
+        {mounted && !nextUp && totalSubtopics > 0 ? (
+          <motion.p
+            key="done"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-3 rounded-xl bg-[var(--color-moss-soft)] px-4 py-3 text-sm text-[var(--color-ink)]"
+          >
+            You&apos;ve been through every section in Semester 1. 🎉
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
+    </motion.section>
   );
 }
 
 function DashboardActionLink({ label, target }: { label: string; target: NextUp }) {
   return (
-    <Link
-      href={`/subject/${target.subjectSlug}/${target.unitNumber}?section=${target.subtopicNumber}`}
-      className="mt-3 flex items-center justify-between rounded-xl bg-[var(--color-ochre-soft)] px-4 py-3 transition-opacity hover:opacity-90"
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.98 }}
+      className="mt-3"
     >
-      <span className="min-w-0">
-        <span className="block text-xs font-medium uppercase tracking-wide text-[var(--color-ochre)]">
-          {label}
+      <Link
+        href={`/subject/${target.subjectSlug}/${target.unitNumber}?section=${target.subtopicNumber}`}
+        className="flex items-center justify-between rounded-xl bg-[var(--color-ochre-soft)] px-4 py-3"
+      >
+        <span className="min-w-0">
+          <span className="block text-xs font-medium uppercase tracking-wide text-[var(--color-ochre)]">
+            {label}
+          </span>
+          <span className="block truncate text-sm text-[var(--color-ink)]">
+            {target.subjectName} · {target.subtopicTitle}
+          </span>
         </span>
-        <span className="block truncate text-sm text-[var(--color-ink)]">
-          {target.subjectName} · {target.subtopicTitle}
-        </span>
-      </span>
-      <span className="shrink-0 text-[var(--color-ochre)]">→</span>
-    </Link>
+        <span className="shrink-0 text-[var(--color-ochre)]">→</span>
+      </Link>
+    </motion.div>
   );
 }

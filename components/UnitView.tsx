@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "motion/react";
 import type { Unit, ProgressMap } from "@/lib/types";
 import SubtopicNav, { type SectionId } from "./SubtopicNav";
 import ReadAloud from "./ReadAloud";
@@ -103,22 +104,26 @@ export default function UnitView({ subjectSlug, subjectName, unit, initialSectio
         <div className="flex items-center gap-3">
           <button
             onClick={() => setNavOpen((v) => !v)}
-            className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs text-[var(--color-ink-soft)] md:hidden"
+            className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs text-[var(--color-ink-soft)] transition-colors active:bg-[var(--color-surface)] md:hidden"
           >
             Contents
           </button>
           <div className="hidden md:block">
-            <Link href={`/subject/${subjectSlug}`} className="text-xs text-[var(--color-ink-faint)] hover:text-[var(--color-ink-soft)]">
+            <Link
+              href={`/subject/${subjectSlug}`}
+              className="text-xs text-[var(--color-ink-faint)] hover:text-[var(--color-ink-soft)]"
+            >
               ← {subjectName}
             </Link>
           </div>
         </div>
-        <button
+        <motion.button
+          whileTap={{ scale: 0.96 }}
           onClick={() => setChatOpen((v) => !v)}
           className="rounded-full bg-[var(--color-ochre-soft)] px-4 py-1.5 text-xs font-medium text-[var(--color-ochre)]"
         >
           {chatOpen ? "Close assistant" : "Ask about this"}
-        </button>
+        </motion.button>
       </header>
 
       <div className="mx-auto flex max-w-5xl">
@@ -134,71 +139,123 @@ export default function UnitView({ subjectSlug, subjectName, unit, initialSectio
         </aside>
 
         {/* Mobile nav drawer */}
-        {navOpen && (
-          <div className="fixed inset-0 z-30 md:hidden">
-            <div className="absolute inset-0 bg-black/20" onClick={() => setNavOpen(false)} />
-            <div className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-[var(--color-paper)] px-3 py-5 shadow-xl">
-              <Link
-                href={`/subject/${subjectSlug}`}
-                className="mb-3 block px-2 text-xs text-[var(--color-ink-faint)]"
-              >
-                ← {subjectName}
-              </Link>
-              <SubtopicNav
-                unit={unit}
-                subjectSlug={subjectSlug}
-                active={active}
-                onSelect={selectSection}
-                progress={progress}
+        <AnimatePresence>
+          {navOpen && (
+            <div className="fixed inset-0 z-30 md:hidden">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 bg-black/20"
+                onClick={() => setNavOpen(false)}
               />
+              <motion.div
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-[var(--color-paper)] px-3 py-5 shadow-xl"
+              >
+                <Link
+                  href={`/subject/${subjectSlug}`}
+                  className="mb-3 block px-2 text-xs text-[var(--color-ink-faint)]"
+                >
+                  ← {subjectName}
+                </Link>
+                <SubtopicNav
+                  unit={unit}
+                  subjectSlug={subjectSlug}
+                  active={active}
+                  onSelect={selectSection}
+                  progress={progress}
+                />
+              </motion.div>
             </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
 
         {/* Reading pane */}
         <main className="min-w-0 flex-1 px-6 py-8 md:px-10">
           <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-ink-faint)]">
             {subjectName} · {unit.unit_label}
           </p>
-          <h1 className="mt-1 font-[var(--font-serif)] text-2xl font-semibold text-[var(--color-ink)]">
-            {displayTitle}
-          </h1>
 
-          {activeSubtopic && (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <ReadAloud
-                text={displayBody}
-                title={displayTitle}
-                subtitle={`${subjectName} · ${unit.unit_label}`}
-              />
-              <button
-                onClick={markPracticed}
-                disabled={currentStatus === "practiced"}
-                className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] disabled:opacity-40"
-              >
-                {currentStatus === "practiced" ? "Practiced ✓" : "Mark as practiced"}
-              </button>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              <h1 className="mt-1 font-[var(--font-serif)] text-2xl font-semibold text-[var(--color-ink)]">
+                {displayTitle}
+              </h1>
 
-          <article className="prose-reading mt-6">
-            {paragraphs.length > 0 ? (
-              paragraphs.map((p, i) => <p key={i}>{p}</p>)
-            ) : (
-              <p className="text-[var(--color-ink-faint)]">Nothing here yet.</p>
-            )}
-          </article>
+              {activeSubtopic && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <ReadAloud
+                    text={displayBody}
+                    title={displayTitle}
+                    subtitle={`${subjectName} · ${unit.unit_label}`}
+                  />
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={markPracticed}
+                    disabled={currentStatus === "practiced"}
+                    animate={
+                      currentStatus === "practiced"
+                        ? { backgroundColor: "var(--color-moss-soft)" }
+                        : { backgroundColor: "transparent" }
+                    }
+                    transition={{ duration: 0.3 }}
+                    className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] disabled:opacity-70"
+                  >
+                    {currentStatus === "practiced" ? "Practiced ✓" : "Mark as practiced"}
+                  </motion.button>
+                </div>
+              )}
+
+              <article className="prose-reading mt-6">
+                {paragraphs.length > 0 ? (
+                  paragraphs.map((p, i) => <p key={i}>{p}</p>)
+                ) : (
+                  <p className="text-[var(--color-ink-faint)]">Nothing here yet.</p>
+                )}
+              </article>
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         {/* Chat panel */}
-        {chatOpen && (
-          <div className="fixed inset-0 z-30 md:static md:inset-auto md:z-auto">
-            <div className="absolute inset-0 bg-black/20 md:hidden" onClick={() => setChatOpen(false)} />
-            <div className="absolute inset-y-0 right-0 w-full max-w-sm border-l border-[var(--color-line)] bg-[var(--color-paper)] shadow-xl md:sticky md:top-[57px] md:h-[calc(100vh-57px)] md:w-80 md:shadow-none">
-              <ChatPanel unitContext={unit.raw_text} subjectName={subjectName} unitTitle={unit.unit_title} />
+        <AnimatePresence>
+          {chatOpen && (
+            <div className="fixed inset-0 z-30 md:static md:inset-auto md:z-auto">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 bg-black/20 md:hidden"
+                onClick={() => setChatOpen(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="absolute inset-y-0 right-0 w-full max-w-sm border-l border-[var(--color-line)] bg-[var(--color-paper)] shadow-xl md:sticky md:top-[57px] md:h-[calc(100vh-57px)] md:w-80 md:shadow-none"
+              >
+                <ChatPanel
+                  unitContext={unit.raw_text}
+                  subjectName={subjectName}
+                  unitTitle={unit.unit_title}
+                />
+              </motion.div>
             </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

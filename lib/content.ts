@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import type { Subject, Unit } from "./types";
+import type { Subject, Unit, SubjectWithSubtopics } from "./types";
 
 const SEED_DIR = path.join(process.cwd(), "data", "seed");
 
@@ -43,6 +43,68 @@ export async function getSubjects(): Promise<Subject[]> {
   }
   const seed = await readSeedIndex();
   return [...seed].sort((a, b) => a.order - b.order);
+}
+
+/**
+ * Subjects with just their subtopic numbers/titles (no content text) -
+ * for the home page and dashboard, which only need counts and titles,
+ * not the full reading content. One Supabase query via PostgREST's
+ * nested-resource embedding, instead of a separate 3-query getUnit()
+ * call per subject (which also pulls every subtopic's full text along
+ * the way - the previous version of this page was transferring the
+ * entire syllabus on every home page load just to show counts).
+ */
+export async function getSubjectSummaries(): Promise<SubjectWithSubtopics[]> {
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("subjects")
+        .select(
+          "slug, name, sort_order, units(unit_number, subtopics(number, title, sort_order))"
+        )
+        .order("sort_order", { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        return data.map((s) => {
+          const unit = Array.isArray(s.units) ? s.units[0] : s.units;
+          const subtopics = (unit?.subtopics ?? [])
+            .slice()
+            .sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order)
+            .map((st: { number: string; title: string }) => ({
+              number: st.number,
+              title: st.title,
+              content: "", // deliberately omitted here - not needed for counts/titles
+            }));
+          return {
+            slug: s.slug,
+            name: s.name,
+            order: s.sort_order,
+            unitNumber: unit?.unit_number ?? "1",
+            subtopics,
+          };
+        });
+      }
+    } catch {
+      // Fall through to local seed data below.
+    }
+  }
+
+  // Fallback: local seed data.
+  const seed = await readSeedIndex();
+  const withUnits = await Promise.all(
+    seed.map(async (s) => {
+      const unit = await readSeedUnit(s.slug);
+      return {
+        slug: s.slug,
+        name: s.name,
+        order: s.order,
+        unitNumber: unit?.unit_number ?? "1",
+        subtopics: (unit?.subtopics ?? []).map((st) => ({ ...st, content: "" })),
+      };
+    })
+  );
+  return withUnits.sort((a, b) => a.order - b.order);
 }
 
 async function getUnitFromSupabase(subjectSlug: string, unitNumber: string): Promise<Unit | null> {
