@@ -10,9 +10,9 @@ type Props = {
 };
 
 // Splits into chunks the Web Speech API handles reliably. Very long
-// single utterances are prone to silently cutting off in Chrome; queuing
-// shorter chunks is the standard workaround, and it also gives us
-// pause/resume granularity.
+// single utterances are prone to silently cutting off; queuing shorter
+// chunks is the standard workaround, and it also gives us pause/resume
+// and skip-forward granularity.
 function chunkText(text: string): string[] {
   const sentences = text
     .replace(/\s+/g, " ")
@@ -34,74 +34,145 @@ function chunkText(text: string): string[] {
 }
 
 const RATES = [0.85, 1, 1.15, 1.3];
+const STALL_CHECK_MS = 4000;
+const STALL_THRESHOLD_MS = 8000;
+const MAX_NUDGES_BEFORE_SKIP = 3;
 
 export default function ReadAloud({ text, title, subtitle }: Props) {
   const [supported, setSupported] = useState(true);
   const [playing, setPlaying] = useState(false);
+  const [stalled, setStalled] = useState(false);
   const [rateIndex, setRateIndex] = useState(1);
   const [chunkIndex, setChunkIndex] = useState(0);
 
   const chunksRef = useRef<string[]>([]);
-  const resumeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastProgressRef = useRef(Date.now());
+  const nudgeCountRef = useRef(0);
+  const playingRef = useRef(false); // avoids stale closures inside the interval
+  const currentIndexRef = useRef(0); // ditto - the interval must never read stale React state
 
   useEffect(() => {
-    setSupported(typeof window !== "undefined" && "speechSynthesis" in window);
+    const hasSpeech = typeof window !== "undefined" && "speechSynthesis" in window;
+    setSupported(hasSpeech);
     chunksRef.current = chunkText(text);
     setChunkIndex(0);
+
+    // Voices often load asynchronously - if getVoices() is called before
+    // they're ready it returns an empty list, which is harmless here
+    // since we just fall back to the browser's default voice, but
+    // warming it up early means the *first* play() is more likely to
+    // get a real voice on the first try.
+    if (hasSpeech) {
+      window.speechSynthesis.getVoices();
+    }
+
     return () => {
       stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
 
-  const clearResumeWorkaround = () => {
-    if (resumeTimerRef.current) {
-      clearInterval(resumeTimerRef.current);
-      resumeTimerRef.current = null;
+  const clearWatchdog = () => {
+    if (watchdogRef.current) {
+      clearInterval(watchdogRef.current);
+      watchdogRef.current = null;
     }
   };
 
-  // Chrome sometimes silently pauses long-running speech synthesis.
-  // Nudging resume() periodically is the widely-used workaround.
-  const startResumeWorkaround = () => {
-    clearResumeWorkaround();
-    resumeTimerRef.current = setInterval(() => {
-      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+  const markProgress = () => {
+    lastProgressRef.current = Date.now();
+    nudgeCountRef.current = 0;
+    setStalled(false);
+  };
+
+  // Recovery-only watchdog. Some browsers (mostly desktop Chrome) can
+  // silently stall long-running speech synthesis after several seconds.
+  // The old version of this nudged pause()/resume() unconditionally
+  // every 10s regardless of whether playback was healthy - which is
+  // itself a likely cause of audible stutter/"buffering" on platforms
+  // that don't have the underlying bug (this was rewritten after
+  // exactly that report). Now it only intervenes when there's been no
+  // real progress for a while, and gives up on a chunk (skipping to the
+  // next one) rather than hanging forever if nudging doesn't help.
+  const startWatchdog = () => {
+    clearWatchdog();
+    lastProgressRef.current = Date.now();
+    nudgeCountRef.current = 0;
+    watchdogRef.current = setInterval(() => {
+      if (!playingRef.current) return;
+      const stalledFor = Date.now() - lastProgressRef.current;
+      if (stalledFor < STALL_THRESHOLD_MS) return;
+
+      if (nudgeCountRef.current >= MAX_NUDGES_BEFORE_SKIP) {
+        // Nudging isn't helping - move on rather than hang indefinitely.
+        nudgeCountRef.current = 0;
+        setStalled(false);
+        window.speechSynthesis.cancel();
+        speakFrom(currentIndexRef.current + 1);
+        return;
+      }
+
+      setStalled(true);
+      nudgeCountRef.current += 1;
+      lastProgressRef.current = Date.now(); // give the nudge a moment to take effect
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      } else if (window.speechSynthesis.speaking) {
         window.speechSynthesis.pause();
         window.speechSynthesis.resume();
       }
-    }, 10000);
+    }, STALL_CHECK_MS);
   };
+
+  function pickVoice(): SpeechSynthesisVoice | undefined {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) return undefined;
+    // Prefer on-device voices. Some Chrome voices are "remote" (server-
+    // synthesized) - SpeechSynthesisVoice.localService is false for
+    // those - and that's the most likely cause of buffering-style
+    // stalls even on a good connection, since it depends on Google's
+    // TTS backend rather than the device itself.
+    const local = voices.filter((v) => v.localService);
+    const pool = local.length > 0 ? local : voices;
+    return pool.find((v) => v.lang === "en-IN") ?? pool.find((v) => v.lang?.startsWith("en")) ?? pool[0];
+  }
 
   const speakFrom = useCallback(
     (index: number) => {
       const chunks = chunksRef.current;
       if (index >= chunks.length) {
         setPlaying(false);
-        clearResumeWorkaround();
+        playingRef.current = false;
+        clearWatchdog();
+        if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
         return;
       }
 
       const utterance = new SpeechSynthesisUtterance(chunks[index]);
       utterance.rate = RATES[rateIndex];
-
-      const voices = window.speechSynthesis.getVoices();
-      const preferred =
-        voices.find((v) => v.lang === "en-IN") ??
-        voices.find((v) => v.lang?.startsWith("en")) ??
-        voices[0];
-      if (preferred) utterance.voice = preferred;
+      currentIndexRef.current = index;
+      const voice = pickVoice();
+      if (voice) utterance.voice = voice;
 
       utterance.onstart = () => {
         setChunkIndex(index);
+        markProgress();
         if ("mediaSession" in navigator) {
           navigator.mediaSession.playbackState = "playing";
         }
       };
+      utterance.onboundary = () => {
+        markProgress(); // word-level progress signal where the voice supports it
+      };
       utterance.onend = () => speakFrom(index + 1);
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
+        // Fires with "interrupted"/"canceled" from our own cancel()
+        // calls (stop, skip, switching subtopics) - not a real failure.
+        if (e.error === "interrupted" || e.error === "canceled") return;
         setPlaying(false);
-        clearResumeWorkaround();
+        playingRef.current = false;
+        clearWatchdog();
       };
 
       window.speechSynthesis.speak(utterance);
@@ -113,7 +184,8 @@ export default function ReadAloud({ text, title, subtitle }: Props) {
     if (!supported) return;
     window.speechSynthesis.cancel();
     setPlaying(true);
-    startResumeWorkaround();
+    playingRef.current = true;
+    startWatchdog();
     speakFrom(chunkIndex);
 
     if ("mediaSession" in navigator) {
@@ -131,13 +203,16 @@ export default function ReadAloud({ text, title, subtitle }: Props) {
   const pause = () => {
     window.speechSynthesis.pause();
     setPlaying(false);
+    playingRef.current = false;
+    clearWatchdog();
     if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused";
   };
 
   const resume = () => {
     window.speechSynthesis.resume();
     setPlaying(true);
-    startResumeWorkaround();
+    playingRef.current = true;
+    startWatchdog();
     if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
   };
 
@@ -146,8 +221,11 @@ export default function ReadAloud({ text, title, subtitle }: Props) {
       window.speechSynthesis.cancel();
     }
     setPlaying(false);
+    playingRef.current = false;
+    setStalled(false);
     setChunkIndex(0);
-    clearResumeWorkaround();
+    currentIndexRef.current = 0;
+    clearWatchdog();
     if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
       navigator.mediaSession.playbackState = "none";
     }
@@ -187,7 +265,9 @@ export default function ReadAloud({ text, title, subtitle }: Props) {
           {playing ? "❙❙" : "▶"}
         </motion.button>
       </div>
-      <span className="text-xs text-[var(--color-ink-soft)] min-w-[6ch]">{progressPct}%</span>
+      <span className="text-xs text-[var(--color-ink-soft)] min-w-[6ch]">
+        {stalled ? "recovering…" : `${progressPct}%`}
+      </span>
       <button
         onClick={cycleRate}
         className="text-xs font-medium text-[var(--color-ochre)] hover:underline"
