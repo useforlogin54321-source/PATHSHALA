@@ -54,6 +54,7 @@ import argparse
 import json
 import os
 import subprocess
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -182,7 +183,7 @@ def main():
     parser.add_argument("--force", action="store_true", help="Regenerate even if audio already exists")
     args = parser.parse_args()
 
-    piper_bin = subprocess.run(["which", "piper"], capture_output=True, text=True).stdout.strip()
+    piper_bin = shutil.which("piper")
     if not piper_bin:
         sys.exit("piper CLI not found on PATH - did `pip install piper-tts` succeed?")
 
