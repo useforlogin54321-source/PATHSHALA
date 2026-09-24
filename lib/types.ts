@@ -2,6 +2,7 @@ export type Subtopic = {
   number: string;   // e.g. "1.1"
   title: string;
   content: string;
+  audio_url?: string | null;
 };
 
 export type Unit = {

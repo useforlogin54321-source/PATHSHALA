@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import type { Unit, ProgressMap } from "@/lib/types";
 import SubtopicNav, { type SectionId } from "./SubtopicNav";
-import ReadAloud from "./ReadAloud";
+import AudioPlayer from "./AudioPlayer";
 import ChatPanel from "./ChatPanel";
 import { getAllProgress, setProgress, subtopicKey, setLastVisited } from "@/lib/progress";
 
@@ -195,11 +195,17 @@ export default function UnitView({ subjectSlug, subjectName, unit, initialSectio
 
               {activeSubtopic && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <ReadAloud
-                    text={displayBody}
-                    title={displayTitle}
-                    subtitle={`${subjectName} · ${unit.unit_label}`}
-                  />
+                  {activeSubtopic.audio_url ? (
+                    <AudioPlayer
+                      audioUrl={activeSubtopic.audio_url}
+                      title={displayTitle}
+                      subtitle={`${subjectName} · ${unit.unit_label}`}
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--color-ink-faint)]">
+                      Listen · audio not generated for this section yet
+                    </span>
+                  )}
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     onClick={markPracticed}

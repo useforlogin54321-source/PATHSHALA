@@ -125,7 +125,7 @@ async function getUnitFromSupabase(subjectSlug: string, unitNumber: string): Pro
       .select(
         `slug, name,
          units!inner(unit_number, unit_label, unit_title, learning_outcomes, summary, keywords, self_assessment_questions, references_text,
-           subtopics(number, title, content, sort_order))`
+           subtopics(number, title, content, audio_url, sort_order))`
       )
       .eq("slug", subjectSlug)
       .eq("units.unit_number", unitNumber)
@@ -139,10 +139,11 @@ async function getUnitFromSupabase(subjectSlug: string, unitNumber: string): Pro
     const list = (unitRow.subtopics ?? [])
       .slice()
       .sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order)
-      .map((s: { number: string; title: string; content: string }) => ({
+      .map((s: { number: string; title: string; content: string; audio_url: string | null }) => ({
         number: s.number,
         title: s.title,
         content: s.content,
+        audio_url: s.audio_url,
       }));
 
     // raw_text isn't stored in Supabase - it's fully derivable from the

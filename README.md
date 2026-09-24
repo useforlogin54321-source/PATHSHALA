@@ -19,9 +19,12 @@ just "how do I run it."
 - An AI assistant scoped to whatever unit is open (needs a free Gemini
   API key to actually respond — the UI works without one, it just can't
   reach the model).
-- Read-aloud via the browser's built-in text-to-speech, with lock-screen
-  controls wired up (Media Session API) — per your call to try this
-  before building a pre-generated-audio pipeline.
+- Read-aloud via real pre-generated audio (native `<audio>` + Media
+  Session API for lock-screen controls) — switched to this after live
+  in-browser text-to-speech turned out to be unreliable in practice (see
+  "Generating audio" below). This is the architecture the Phase 1 doc
+  originally recommended; live synthesis was tried first per your call,
+  and this is the fallback it anticipated.
 - Installable as a PWA on Android and desktop.
 - Fonts (Source Serif 4, Public Sans) are self-hosted via Fontsource -
   no external font host dependency at all.
@@ -81,6 +84,26 @@ unit's text plus a system prompt that requires it to stay inside that
 material and say plainly when something's out of scope — see the Phase 1
 doc's "AI Architecture" section for the reasoning.
 
+## Generating audio
+
+Read-aloud needs each subtopic's audio generated once and uploaded to
+Supabase Storage - it doesn't happen live. Full instructions are in the
+script itself: `scripts/generate_audio.py`. Short version:
+
+```bash
+pip install piper-tts
+python -m piper.download_voices en_US-lessac-medium
+# move the two downloaded files next to generate_audio.py, then:
+python scripts/generate_audio.py
+```
+
+This has to run on your machine, not from wherever this was built -
+Piper's voice models are hosted on Hugging Face, which that build
+sandbox's network couldn't reach. It's safe to re-run any time (only
+processes subtopics that don't have audio yet); pass `--subject
+c-programming` to try it on one subject first, or `--force` to
+regenerate everything.
+
 ## Adding more units and subjects later
 
 Today's content lives in `data/seed/*.json`, one file per subject, each
@@ -130,9 +153,10 @@ C Programming is one place to check).
 
 ```
 app/                  Pages and the AI chat API route
-components/           UI components (nav, reading pane, chat, read-aloud)
+components/           UI components (nav, reading pane, chat, audio player)
 lib/                  Data access (Supabase + local fallback), types, progress/streak
 data/seed/            The 8 subjects' Unit 1 content, parsed and structured
 supabase/schema.sql   Table definitions
 scripts/seed.mjs      Pushes data/seed/ into Supabase
+scripts/generate_audio.py  Generates + uploads read-aloud audio (see above)
 ```
