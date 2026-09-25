@@ -53,6 +53,8 @@ Options:
 import argparse
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -62,6 +64,76 @@ from urllib import request, error as urlerror
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 BUCKET = "unit-audio"
+
+
+def is_diagram_line(stripped: str) -> bool:
+    """True for a line that's ASCII-art (flowchart boxes/connectors)
+    rather than real prose - these read as gibberish if spoken."""
+    if not stripped:
+        return False
+    if re.match(r"^\[.+\]$", stripped):  # a box label on its own, e.g. "[Start]"
+        return True
+    if not re.search(r"[a-zA-Z0-9]", stripped):  # only symbols/whitespace, e.g. "  |", "/    \\"
+        return True
+    non_space = len(stripped.replace(" ", ""))
+    symbol_chars = sum(1 for c in stripped if c in "[]|/\\_<>=")
+    return non_space > 0 and symbol_chars / non_space > 0.25
+
+
+def clean_for_speech(text: str) -> str:
+    """
+    The written content is meant to be read on screen as well as heard,
+    so this only touches the copy that gets synthesized - the app's
+    reading view still shows the original text untouched.
+
+    Three things a listener actually complained about:
+    - "1.2.2" read digit-by-digit as "one point two point two" instead
+      of just... not being read as a number at all
+    - bullet points read as a mangled word instead of silently starting
+      a new item
+    - ASCII-art flowcharts (boxes and connector lines) read as noise
+    """
+    cleaned_lines = []
+    for line in text.split("\n"):
+        stripped = line.strip()
+
+        # Nested numbered sub-heading, e.g. "1.1.1 Understanding Problems"
+        # -> drop the number, keep the heading as its own sentence so it
+        # still reads as a natural break instead of a string of digits.
+        heading_match = re.match(r"^\d+(\.\d+){1,4}\s+([A-Z].*)$", stripped)
+        if heading_match:
+            cleaned_lines.append(heading_match.group(2) + ".")
+            continue
+
+        # Bullet marker at the start of a line - drop the symbol, keep
+        # the item's text.
+        bullet_match = re.match(r"^[•\-\*]\s+(.+)$", stripped)
+        if bullet_match:
+            cleaned_lines.append(bullet_match.group(1))
+            continue
+
+        if is_diagram_line(stripped):
+            continue
+
+        cleaned_lines.append(line)
+
+    text = "\n".join(cleaned_lines)
+
+    replacements = [
+        (r"&", " and "),
+        (r"%", " percent"),
+        (r"°", " degrees"),
+        (r"×", " times "),
+        (r"→", " leads to "),
+        (r"[•\u2022]", ""),  # any bullet characters that weren't at a line start
+        (r"_{3,}", ""),  # underscores used as blank-line placeholders
+        (r"[ \t]{2,}", " "),  # collapse extra spacing (tables, indentation)
+        (r"\n{3,}", "\n\n"),
+    ]
+    for pattern, repl in replacements:
+        text = re.sub(pattern, repl, text)
+
+    return text.strip()
 
 
 def load_env():
@@ -182,7 +254,7 @@ def main():
     parser.add_argument("--force", action="store_true", help="Regenerate even if audio already exists")
     args = parser.parse_args()
 
-    piper_bin = subprocess.run(["which", "piper"], capture_output=True, text=True).stdout.strip()
+    piper_bin = shutil.which("piper")
     if not piper_bin:
         sys.exit("piper CLI not found on PATH - did `pip install piper-tts` succeed?")
 
@@ -212,7 +284,7 @@ def main():
             try:
                 wav_path = tmp / "out.wav"
                 mp3_path = tmp / "out.mp3"
-                synthesize(piper_bin, voice_onnx, voice_json, row["content"], wav_path)
+                synthesize(piper_bin, voice_onnx, voice_json, clean_for_speech(row["content"]), wav_path)
                 wav_to_mp3(wav_path, mp3_path)
                 upload_and_link(url, key, row, mp3_path)
                 print("done")
