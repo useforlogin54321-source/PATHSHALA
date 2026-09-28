@@ -19,22 +19,57 @@ Requires `pdftotext` (poppler-utils) on PATH.
 import re, json, sys, os, glob
 
 def norm_label(label):
-    label = re.sub(r'\s+', ' ', label).strip().lower()
-    label = label.replace('\u2013', '-')
-    return label
+    # Punctuation-agnostic: 'Self – Assessment', 'Self-Assessment' and
+    # 'Self Assessment' all normalize to 'self assessment'.
+    return re.sub(r'[^a-z0-9]+', ' ', label.lower()).strip()
 
-SECTION_ALIASES = {
-    "summary": "summary",
-    "keywords": "keywords",
-    "key words": "keywords",
-    "self assessment questions": "self_assessment_questions",
-    "self - assessment questions": "self_assessment_questions",
-    "self-assessment questions": "self_assessment_questions",
-    "self check questions": "self_assessment_questions",
-    "reference": "references",
-    "references": "references",
-    "further reading": "further_reading",
-}
+
+def classify_special(label_raw):
+    """Substring-based rather than exact-match, so 'Keywords with
+    Definitions', 'Self-Assessment Questions (Subjective)' and
+    'Subjective Questions' are all recognised."""
+    n = norm_label(label_raw)
+    if 'self assessment' in n or 'subjective question' in n or 'self check' in n:
+        return 'self_assessment_questions'
+    if 'keyword' in n:
+        return 'keywords'
+    if n == 'summary' or n.startswith('summary'):
+        return 'summary'
+    if 'reference' in n or 'further reading' in n:
+        return 'references'
+    return None
+
+
+STANDALONE_HEADING_RE = re.compile(
+    r'(?m)^\s*(Summary|Keywords|Key\s*Words|Self[\s-]?Assessment\s*Questions(?:\s*\([^)]*\))?|'
+    r'Self\s*Check\s*Questions|Subjective\s*Questions|References|Further\s*Reading)\s*$'
+)
+
+
+def extract_unnumbered_specials(body):
+    """Some units (e.g. English) have Summary/Keywords/Self-Assessment/
+    References as plain standalone headings with no number. Pulls those
+    out and returns (remaining_body, specials)."""
+    matches = list(STANDALONE_HEADING_RE.finditer(body))
+    if not matches:
+        return body, {}
+    specials, cut_spans = {}, []
+    for i, m in enumerate(matches):
+        key = classify_special(m.group(1))
+        if not key:
+            continue
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+        content = body[m.end():end].strip()
+        if content:
+            specials[key] = content
+            cut_spans.append((m.start(), end))
+    remaining, last = [], 0
+    for a, b in sorted(cut_spans):
+        remaining.append(body[last:a])
+        last = b
+    remaining.append(body[last:])
+    return ''.join(remaining), specials
+
 
 def clean_text(t):
     t = t.replace('\f', '\n')
@@ -63,6 +98,7 @@ def parse_file(txt_path, subject_name):
         unit_label, unit_title, unit_number = "Unit 1", title_line, "1"
 
     body = '\n'.join(lines[title_idx + 1:])
+    body, unnumbered_specials = extract_unnumbered_specials(body)
     heading_re = re.compile(rf'(?m)^\s*{re.escape(unit_number)}\.(\d+)\s*([A-Za-z][^\n]*)$')
     matches = list(heading_re.finditer(body))
 
@@ -76,13 +112,17 @@ def parse_file(txt_path, subject_name):
             "content": body[start:end].strip(),
         })
 
-    subtopics, specials = [], {}
-    for s in sections:
-        mapped = SECTION_ALIASES.get(norm_label(s["label_raw"]))
-        if mapped:
-            specials[mapped] = s["content"]
-        elif len(s["content"]) > 5:
-            subtopics.append({"number": s["number"], "title": s["label_raw"], "content": s["content"]})
+    subtopics, numbered_specials = [], {}
+    for sec in sections:
+        key = classify_special(sec["label_raw"])
+        if key:
+            # Ignore table-of-contents style entries (a heading with no
+            # content after it) - they'd otherwise overwrite the real one.
+            if sec["content"].strip() and len(sec["content"]) > len(numbered_specials.get(key, "")):
+                numbered_specials[key] = sec["content"]
+        elif len(sec["content"]) > 5:
+            subtopics.append({"number": sec["number"], "title": sec["label_raw"], "content": sec["content"]})
+    specials = {**unnumbered_specials, **numbered_specials}
 
     lo_block = ""
     lo_match = re.search(r'(Learning Outcomes|Learning Objectives)\s*:?\s*\n(.*?)(?:\nStructure\s*:|\Z)', body, re.I | re.S)
@@ -99,7 +139,7 @@ def parse_file(txt_path, subject_name):
         "summary": specials.get("summary", ""),
         "keywords": specials.get("keywords", ""),
         "self_assessment_questions": specials.get("self_assessment_questions", ""),
-        "references": specials.get("references", "") or specials.get("further_reading", ""),
+        "references": specials.get("references", ""),
         "raw_text": text,
     }
 

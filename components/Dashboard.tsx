@@ -51,7 +51,7 @@ export default function Dashboard({
     setMounted(true);
   }, []);
 
-  const { done, fraction } = overallCompletion(totalSubtopics, progress);
+  const { done, fraction } = overallCompletion(subjects, progress);
   const leastProgress = leastProgressSubject(subjects, progress);
   const nextUp = findNextUp(subjects, progress);
   const weekDays = getWeekActivity();

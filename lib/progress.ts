@@ -162,32 +162,35 @@ export function getLastVisited(): LastVisited | null {
 
 // ---- derived stats for the dashboard ------------------------------------
 
-/** Rough per-subject completion, for the subject list's progress ring. */
-export function subjectCompletion(
-  subjectSlug: string,
-  totalSubtopics: number,
-  progress: ProgressMap
-): number {
-  if (totalSubtopics === 0) return 0;
-  const done = Object.entries(progress).filter(
-    ([key, status]) => key.startsWith(`${subjectSlug}:`) && status !== "unread"
-  ).length;
-  return Math.min(1, done / totalSubtopics);
+/** Per-subject completion (0..1). Only counts sections that still exist
+ * in the syllabus - stale entries for sections that were later removed or
+ * reclassified can't inflate the number. */
+export function subjectCompletion(subject: SubjectWithSubtopics, progress: ProgressMap): number {
+  if (subject.subtopics.length === 0) return 0;
+  const done = subject.subtopics.filter((st) => {
+    const status = progress[subtopicKey(subject.slug, subject.unitNumber, st.number)];
+    return status !== undefined && status !== "unread";
+  }).length;
+  return Math.min(1, done / subject.subtopics.length);
 }
 
-/** Across every subject: how many subtopics have been touched at all
+/** Across every subject: how many existing sections have been touched
  * (read or practiced) vs. the total that exist - for the dashboard's
  * overall progress ring. */
 export function overallCompletion(
-  totalSubtopics: number,
+  subjects: SubjectWithSubtopics[],
   progress: ProgressMap
 ): { done: number; total: number; fraction: number } {
-  const done = Object.values(progress).filter((s) => s !== "unread").length;
-  return {
-    done,
-    total: totalSubtopics,
-    fraction: totalSubtopics === 0 ? 0 : Math.min(1, done / totalSubtopics),
-  };
+  let done = 0;
+  let total = 0;
+  for (const subject of subjects) {
+    for (const st of subject.subtopics) {
+      total += 1;
+      const status = progress[subtopicKey(subject.slug, subject.unitNumber, st.number)];
+      if (status !== undefined && status !== "unread") done += 1;
+    }
+  }
+  return { done, total, fraction: total === 0 ? 0 : Math.min(1, done / total) };
 }
 
 /** Whichever subject has made the least relative progress, so the
@@ -202,7 +205,7 @@ export function leastProgressSubject(
     .filter((s) => s.subtopics.length > 0)
     .map((s) => ({
       name: s.name,
-      fraction: subjectCompletion(s.slug, s.subtopics.length, progress),
+      fraction: subjectCompletion(s, progress),
     }));
 
   if (withProgress.length < 2) return null;

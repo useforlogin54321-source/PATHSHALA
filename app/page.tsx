@@ -23,14 +23,7 @@ export default async function HomePage() {
       <p className="mb-3 px-1 text-xs font-medium uppercase tracking-wide text-[var(--color-ink-faint)]">
         All subjects
       </p>
-      <SubjectList
-        subjects={withUnits.map((s) => ({
-          slug: s.slug,
-          name: s.name,
-          order: s.order,
-          subtopicCount: s.subtopics.length,
-        }))}
-      />
+      <SubjectList subjects={withUnits} />
 
       <p className="mt-10 text-xs text-[var(--color-ink-faint)]">
         <Link href="/about" className="hover:text-[var(--color-ink-soft)]">

@@ -5,9 +5,7 @@ import Link from "next/link";
 import { motion, type Variants } from "motion/react";
 import ProgressRing from "./ProgressRing";
 import { getAllProgress, subjectCompletion } from "@/lib/progress";
-import type { ProgressMap } from "@/lib/types";
-
-type SubjectWithCount = { slug: string; name: string; order: number; subtopicCount: number };
+import type { ProgressMap, SubjectWithSubtopics } from "@/lib/types";
 
 const listVariants: Variants = {
   hidden: {},
@@ -19,7 +17,7 @@ const rowVariants: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.28, ease: "easeOut" } },
 };
 
-export default function SubjectList({ subjects }: { subjects: SubjectWithCount[] }) {
+export default function SubjectList({ subjects }: { subjects: SubjectWithSubtopics[] }) {
   const [progress, setProgress] = useState<ProgressMap>({});
 
   useEffect(() => {
@@ -42,11 +40,11 @@ export default function SubjectList({ subjects }: { subjects: SubjectWithCount[]
             <div>
               <p className="font-medium text-[var(--color-ink)]">{s.name}</p>
               <p className="text-xs text-[var(--color-ink-faint)]">
-                {s.subtopicCount > 0 ? `${s.subtopicCount} sections · Unit 1` : "Coming soon"}
+                {s.subtopics.length > 0 ? `${s.subtopics.length} sections · Unit 1` : "Coming soon"}
               </p>
             </div>
-            {s.subtopicCount > 0 ? (
-              <ProgressRing progress={subjectCompletion(s.slug, s.subtopicCount, progress)} />
+            {s.subtopics.length > 0 ? (
+              <ProgressRing progress={subjectCompletion(s, progress)} />
             ) : null}
           </Link>
         </motion.li>
