@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { ArrowLeft } from "@/components/Icons";
 
 export default function AboutPage() {
   return (
-    <main className="mx-auto min-h-screen max-w-xl px-6 py-10">
-      <Link href="/" className="text-xs text-[var(--color-ink-faint)] hover:text-[var(--color-ink-soft)]">
-        ← Home
+    <main id="main" className="mx-auto min-h-screen max-w-xl px-6 py-10">
+      <Link href="/" className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-surface)]">
+        <ArrowLeft width={16} height={16} /> Home
       </Link>
       <h1 className="mt-3 font-[var(--font-serif)] text-2xl font-semibold text-[var(--color-ink)]">
         How this works

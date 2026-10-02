@@ -6,19 +6,43 @@
   --color-surface: #e3e7dc;
   --color-surface-raised: #f6f7f2;
 
-  /* Ink */
+  /* Ink (all text pairs >= 4.5:1 on paper/surfaces) */
   --color-ink: #23291f;
   --color-ink-soft: #4d5647;
-  --color-ink-faint: #838f78;
+  --color-ink-faint: #5c684f;
 
   /* Accents */
-  --color-moss: #5b7a5a;
+  --color-moss: #4a6849;
+  --color-on-moss: #f6f7f2;
   --color-moss-soft: #cddac3;
-  --color-ochre: #8b6f47;
+  --color-ochre: #76592f;
   --color-ochre-soft: #e8dcc4;
-  --color-rust: #a85c42;
+  --color-rust: #9a4f36;
 
+  /* Lines: decorative dividers vs. borders of controls (3:1) */
   --color-line: #d3d7c8;
+  --color-line-strong: #7f8a73;
+  --color-scrim: rgb(20 25 18 / 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #141913;
+    --color-surface: #1f261d;
+    --color-surface-raised: #1a2019;
+    --color-ink: #e6eadf;
+    --color-ink-soft: #bcc5b1;
+    --color-ink-faint: #9aa68f;
+    --color-moss: #8fb38d;
+    --color-on-moss: #10150f;
+    --color-moss-soft: #2b3a2a;
+    --color-ochre: #d4b47e;
+    --color-ochre-soft: #3a3122;
+    --color-rust: #d98a6c;
+    --color-line: #323b2f;
+    --color-line-strong: #6b7766;
+    --color-scrim: rgb(0 0 0 / 0.6);
+  }
 }
 
 @theme inline {
@@ -34,6 +58,9 @@
   --color-ochre-soft: var(--color-ochre-soft);
   --color-rust: var(--color-rust);
   --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+  --color-on-moss: var(--color-on-moss);
+  --color-scrim: var(--color-scrim);
 
   --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
   --font-sans: "Public Sans", -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
@@ -44,10 +71,12 @@
 }
 
 html {
-  color-scheme: light;
+  color-scheme: light dark;
+  scroll-padding-top: 4.5rem;
 }
 
 body {
+  min-height: 100dvh;
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
@@ -58,9 +87,47 @@ body {
   background: var(--color-moss-soft);
 }
 
+
+/* Visible keyboard focus everywhere (never remove without a replacement) */
+:focus-visible {
+  outline: 2px solid var(--color-moss);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Remove the 300ms tap delay on controls */
+button,
+a,
+input,
+[role="slider"] {
+  touch-action: manipulation;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  border-radius: 9999px;
+  background: var(--color-moss);
+  color: var(--color-on-moss);
+  font-weight: 500;
+}
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+/* Respect notches / gesture bar on installed PWA */
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
 /* Reading measure for long-form unit content */
 .prose-reading {
   max-width: 68ch;
+  margin-inline: auto;
+  font-size: var(--reading-size, 1.0625rem);
   line-height: 1.75;
 }
 

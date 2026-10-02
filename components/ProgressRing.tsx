@@ -13,13 +13,14 @@ export default function ProgressRing({ progress, size = 44, strokeWidth = 4, lab
 
   return (
     <div className="inline-flex items-center gap-2">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" role="img" aria-label={`${Math.round(clamped * 100)}% complete`}>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--color-line)"
+          stroke="var(--color-line-strong)"
+          strokeOpacity={0.35}
           strokeWidth={strokeWidth}
         />
         <circle

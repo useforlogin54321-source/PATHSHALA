@@ -25,9 +25,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#5b7a5a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eef0ea" },
+    { media: "(prefers-color-scheme: dark)", color: "#141913" },
+  ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -38,6 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <a href="#main" className="skip-link">Skip to content</a>
         <ServiceWorkerRegister />
         <MotionProvider>{children}</MotionProvider>
       </body>

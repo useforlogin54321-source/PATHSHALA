@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { Pause, Play, Replay10, Forward10 } from "./Icons";
 
 type Props = {
   audioUrl: string | null | undefined;
@@ -40,7 +41,7 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
   if (!audioUrl) return null;
 
   function play() {
-    audioRef.current?.play();
+    audioRef.current?.play().catch(() => {});
   }
   function pause() {
     audioRef.current?.pause();
@@ -62,6 +63,12 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
     const rect = e.currentTarget.getBoundingClientRect();
     seekToRatio((e.clientX - rect.left) / rect.width);
   }
+  function handleBarKey(e: React.KeyboardEvent) {
+    if (e.key === "ArrowRight") skip(5);
+    else if (e.key === "ArrowLeft") skip(-5);
+    else return;
+    e.preventDefault();
+  }
 
   function setupMediaSession() {
     if (!("mediaSession" in navigator)) return;
@@ -73,7 +80,7 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
   }
 
   return (
-    <div className="relative flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-surface-raised)] px-3 py-2">
+    <div role="group" aria-label="Listen to this section" className="relative flex w-full items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-surface-raised)] px-2 py-1.5 sm:w-auto">
       <audio
         ref={audioRef}
         src={audioUrl}
@@ -104,12 +111,12 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
         onClick={() => skip(-SKIP_SECONDS)}
         disabled={!ready}
         aria-label={`Back ${SKIP_SECONDS} seconds`}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-40"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-40"
       >
-        ⟲{SKIP_SECONDS}
+        <Replay10 width={24} height={24} />
       </button>
 
-      <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
         {playing ? (
           <motion.span
             className="absolute inset-0 rounded-full bg-[var(--color-moss)]"
@@ -122,9 +129,9 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
           onClick={toggle}
           disabled={!ready}
           aria-label={playing ? "Pause" : "Play"}
-          className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-moss)] text-[var(--color-paper)] disabled:opacity-50"
+          className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-moss)] text-[var(--color-on-moss)] disabled:opacity-50"
         >
-          {playing ? "❙❙" : "▶"}
+          {playing ? <Pause /> : <Play />}
         </motion.button>
       </div>
 
@@ -132,18 +139,25 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
         onClick={() => skip(SKIP_SECONDS)}
         disabled={!ready}
         aria-label={`Forward ${SKIP_SECONDS} seconds`}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-40"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-40"
       >
-        {SKIP_SECONDS}⟳
+        <Forward10 width={24} height={24} />
       </button>
 
       {/* Tap anywhere on this bar to jump straight to that point. */}
       <div
         ref={barRef}
+        role="slider"
+        tabIndex={0}
+        aria-label="Seek"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress * 100)}
         onClick={handleBarClick}
-        className="h-4 w-14 shrink-0 cursor-pointer sm:w-20"
+        onKeyDown={handleBarKey}
+        className="flex h-11 min-w-12 flex-1 cursor-pointer items-center sm:w-24 sm:flex-none"
       >
-        <div className="mt-[7px] h-1.5 overflow-hidden rounded-full bg-[var(--color-line)]">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-line-strong)]/40">
           <motion.div
             className="h-full bg-[var(--color-moss)]"
             animate={{ width: `${Math.round(progress * 100)}%` }}
@@ -155,15 +169,17 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
       <div className="relative">
         <button
           onClick={() => setSpeedMenuOpen((v) => !v)}
-          className="rounded-full px-2 py-1 text-xs font-medium text-[var(--color-ochre)] hover:bg-[var(--color-surface)]"
-          aria-label="Change playback speed"
+          className="h-11 min-w-11 rounded-full px-2 text-sm font-medium text-[var(--color-ochre)] hover:bg-[var(--color-surface)]"
+          aria-label={`Playback speed ${RATES[rateIndex]}x, change`}
+          aria-haspopup="listbox"
+          aria-expanded={speedMenuOpen}
         >
           {RATES[rateIndex]}×
         </button>
         <AnimatePresence>
           {speedMenuOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setSpeedMenuOpen(false)} />
+              <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setSpeedMenuOpen(false)} />
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: -4 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -178,7 +194,7 @@ export default function AudioPlayer({ audioUrl, title, subtitle }: Props) {
                       setRateIndex(i);
                       setSpeedMenuOpen(false);
                     }}
-                    className={`block w-full px-4 py-1.5 text-right text-xs whitespace-nowrap ${
+                    className={`block min-h-11 w-full px-5 text-right text-sm whitespace-nowrap ${
                       i === rateIndex
                         ? "bg-[var(--color-moss-soft)] font-medium text-[var(--color-ink)]"
                         : "text-[var(--color-ink-soft)] hover:bg-[var(--color-surface)]"

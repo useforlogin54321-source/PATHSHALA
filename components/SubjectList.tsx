@@ -35,12 +35,14 @@ export default function SubjectList({ subjects }: { subjects: SubjectWithSubtopi
         <motion.li key={s.slug} variants={rowVariants}>
           <Link
             href={`/subject/${s.slug}`}
-            className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-[var(--color-surface)] active:bg-[var(--color-surface)]"
+            className="flex min-h-16 items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-[var(--color-surface)] active:bg-[var(--color-surface)]"
           >
             <div>
               <p className="font-medium text-[var(--color-ink)]">{s.name}</p>
               <p className="text-xs text-[var(--color-ink-faint)]">
-                {s.subtopics.length > 0 ? `${s.subtopics.length} sections · Unit 1` : "Coming soon"}
+                {s.subtopics.length > 0
+                  ? `Unit 1 · ${Math.round(subjectCompletion(s, progress) * s.subtopics.length)} of ${s.subtopics.length} studied`
+                  : "Coming soon"}
               </p>
             </div>
             {s.subtopics.length > 0 ? (

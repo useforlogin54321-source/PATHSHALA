@@ -13,12 +13,12 @@ export default function WeekStrip({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5" role="list" aria-label="This week">
         {days.map((d, i) => {
           const dow = new Date(d.date + "T00:00:00").getDay();
           return (
-            <div key={d.date} className="flex flex-col items-center gap-1">
-              <span className="text-[10px] text-[var(--color-ink-faint)]">{DAY_LETTERS[dow]}</span>
+            <div key={d.date} role="listitem" aria-label={`${new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "long" })}: ${d.active ? "studied" : d.isToday ? "today, not yet" : "no study"}`} className="flex flex-col items-center gap-1">
+              <span aria-hidden="true" className="text-[11px] text-[var(--color-ink-faint)]">{DAY_LETTERS[dow]}</span>
               <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -28,7 +28,7 @@ export default function WeekStrip({
                     ? "bg-[var(--color-moss)]"
                     : d.isToday
                       ? "border border-dashed border-[var(--color-ink-faint)]"
-                      : "bg-[var(--color-line)]"
+                      : "bg-[var(--color-line-strong)]/40"
                 }`}
                 title={d.date}
               />
@@ -43,7 +43,7 @@ export default function WeekStrip({
           transition={{ delay: 0.25, duration: 0.2 }}
           className="rounded-full bg-[var(--color-ochre-soft)] px-2.5 py-1 text-xs font-medium text-[var(--color-ochre)]"
         >
-          {currentStreak} day{currentStreak === 1 ? "" : "s"}
+          {currentStreak}-day streak
         </motion.span>
       ) : null}
     </div>

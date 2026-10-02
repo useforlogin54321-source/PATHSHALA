@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import ProgressRing from "./ProgressRing";
+import { ArrowRight, Check } from "./Icons";
 import WeekStrip from "./WeekStrip";
 import {
   getAllProgress,
@@ -107,7 +108,7 @@ export default function Dashboard({
               : "Across all of Semester 1"}
           </p>
           {mounted && todayRecap ? (
-            <p className="mt-0.5 text-xs text-[var(--color-moss)]">{todayRecap}</p>
+            <p className="mt-0.5 text-xs font-medium text-[var(--color-moss)]">{todayRecap}</p>
           ) : null}
         </motion.div>
       </div>
@@ -133,7 +134,7 @@ export default function Dashboard({
             exit={{ opacity: 0 }}
             className="mt-3 rounded-xl bg-[var(--color-moss-soft)] px-4 py-3 text-sm text-[var(--color-ink)]"
           >
-            You&apos;ve been through every section in Semester 1. 🎉
+            <span className="flex items-center gap-2"><Check className="shrink-0 text-[var(--color-moss)]" />You&apos;ve been through every section in Semester 1.</span>
           </motion.p>
         ) : null}
       </AnimatePresence>
@@ -155,7 +156,7 @@ function DashboardActionLink({ label, target }: { label: string; target: NextUp 
     >
       <Link
         href={`/subject/${target.subjectSlug}/${target.unitNumber}?section=${target.subtopicNumber}`}
-        className="flex items-center justify-between rounded-xl bg-[var(--color-ochre-soft)] px-4 py-3"
+        className="flex min-h-14 items-center justify-between rounded-xl bg-[var(--color-ochre-soft)] px-4 py-3"
       >
         <span className="min-w-0">
           <span className="block text-xs font-medium uppercase tracking-wide text-[var(--color-ochre)]">
@@ -165,7 +166,7 @@ function DashboardActionLink({ label, target }: { label: string; target: NextUp 
             {target.subjectName} · {target.subtopicTitle}
           </span>
         </span>
-        <span className="shrink-0 text-[var(--color-ochre)]">→</span>
+        <ArrowRight className="shrink-0 text-[var(--color-ochre)]" />
       </Link>
     </motion.div>
   );
